@@ -1,5 +1,10 @@
 <template>
-  <div class="b-tree" ref="scroller" @scroll="handleScroll">
+  <div
+    class="b-tree"
+    ref="scroller"
+    @scroll="handleScroll"
+  >
+
     <div class="b-tree__phantom" :style="{ height: contentHeight }"></div>
     <div
       class="b-tree__content"
@@ -9,28 +14,113 @@
         v-for="(item, index) in visibleData"
         :key="item.id + item.cname + ''"
         :draggable="Boolean(item.isTag)"
-        @dragstart="dragstart(item)"
+        @dragstart='dragstart(item)'
         class="b-tree__list-view"
         @click="clickItem(item, index, $event)"
-        :class="{ select: item.id == currentId }"
+        :class="{'select' : item.id == currentId}"
         :style="{
           paddingLeft: 18 * (item.level - 1) + 'px',
-          height: option.itemHeight + 'px',
+          height: option.itemHeight + 'px'
         }"
       >
         <span
           class="b-tree-icon"
           :class="item.expand ? 'b-tree__expand' : 'b-tree__close'"
+          @click.stop="toggleExpand(item)"
           v-if="item.children && item.children.length"
         >
-          <Icon type="md-arrow-dropdown" size="18px" />
+          <Icon type="md-arrow-dropdown" size="18px"/>
         </span>
-        <span v-else style="margin-right: 5px"></span>
+        <span v-else style="margin-right:5px"></span>
         <slot :item="item" :index="index"></slot>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped lang=less>
+  .b-tree {
+    .b-tree__list-view {
+      &.select {
+        background-color: #fef0e9;
+      }
+      &:hover {
+        background-color: #fef0e9;
+      }
+    }
+  }
+  .b-tree-icon {
+    font-size: 18px !important;
+    transition: .3s all;
+  }
+  .b-tree {
+    position: relative;
+    overflow-y: scroll;
+    overflow-x: scroll;
+    height: 100%;
+  }
+  .b-tree__phantom {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    z-index: -1;
+  }
+  .b-tree__content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    min-height: 100px;
+  }
+  .b-tree__list-view {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  .b-tree__content__item {
+    padding: 5px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    align-items: center;
+    cursor: pointer;
+  }
+  .b-tree__content__item:hover,
+  .b-tree__content__item__selected {
+    background-color: #d7d7d7;
+  }
+  .b-tree__content__item__icon {
+    position: absolute;
+    left: 0;
+    color: #c0c4cc;
+    z-index: 10;
+  }
+  .b-tree__close {
+    /*display: inline-block;*/
+    /*width: 0;*/
+    /*height: 0;*/
+    /*overflow: hidden;*/
+    /*font-size: 0;*/
+    /*margin-right: 5px;*/
+    /*border-width: 5px;*/
+    /*border-color: transparent transparent transparent #c0c4cc;*/
+    /*border-style: dashed dashed dashed solid;*/
+    transform: rotate(-90deg);
+  }
+  .b-tree__expand {
+    /*display: inline-block;*/
+    /*width: 0;*/
+    /*height: 0;*/
+    /*overflow: hidden;*/
+    /*font-size: 0;*/
+    /*margin-right: 5px;*/
+    /*border-width: 5px;*/
+    /*border-color: #c0c4cc transparent transparent transparent;*/
+    /*border-style: solid dashed dashed dashed;*/
+  }
+</style>
 
 <script>
 import { mapMutations } from 'vuex'
@@ -50,8 +140,11 @@ export default {
       required: false,
       default: false
     },
-    timeout: {
-      // 刷新频率
+    allCanSelect: {
+      type: Boolean,
+      default: false
+    },
+    timeout: { // 刷新频率
       type: Number,
       default: 17
     },
@@ -86,7 +179,7 @@ export default {
         defaultExpand = true
       ) {
         const arr = []
-        list.forEach((item) => {
+        list.forEach(item => {
           item.level = level
           if (item.expand === undefined) {
             item.expand = defaultExpand
@@ -144,7 +237,7 @@ export default {
       this.setCurrentDragTag(item)
     },
     clickItem (item, index, $event) {
-      if (item.isTag) {
+      if (item.isTag || this.allCanSelect) {
         this.currentId = item.id
         this.$emit('select', item, $event)
         return
@@ -166,22 +259,20 @@ export default {
       }
     },
     updateVisibleData (scrollTop = 0) {
-      let start =
-        Math.floor(scrollTop / this.option.itemHeight) -
-        Math.floor(this.visibleCount / 2)
+      let start = Math.floor(scrollTop / this.option.itemHeight) - Math.floor(this.visibleCount / 2)
       start = start < 0 ? 0 : start
       const end = start + this.visibleCount * 2
       const allVisibleData = (this.flattenTree || []).filter(
-        (item) => item.visible
+        item => item.visible
       )
       this.visibleData = allVisibleData.slice(start, end)
       this.offset = start * this.option.itemHeight
     },
     getContentHeight () {
       this.contentHeight =
-        (this.flattenTree || []).filter((item) => item.visible).length *
+          (this.flattenTree || []).filter(item => item.visible).length *
           this.option.itemHeight +
-        'px'
+          'px'
     },
     toggleExpand (item) {
       console.log(item)
@@ -205,7 +296,7 @@ export default {
     },
     // 折叠所有
     collapseAll (level = 1) {
-      this.flattenTree.forEach((item) => {
+      this.flattenTree.forEach(item => {
         item.expand = false
         if (item.level != level) {
           item.visible = false
@@ -215,7 +306,7 @@ export default {
     },
     // 展开所有
     expandAll () {
-      this.flattenTree.forEach((item) => {
+      this.flattenTree.forEach(item => {
         item.expand = true
         item.visible = true
       })
@@ -223,73 +314,13 @@ export default {
     },
     // 递归节点
     recursionVisible (children, status) {
-      children &&
-        children.forEach((node) => {
-          node.visible = status
-          if (node.children) {
-            this.recursionVisible(node.children, status)
-          }
-        })
+      children && children.forEach(node => {
+        node.visible = status
+        if (node.children) {
+          this.recursionVisible(node.children, status)
+        }
+      })
     }
   }
 }
 </script>
-
-<style scoped lang=less>
-.b-tree-icon {
-  font-size: 18px !important;
-  transition: 0.3s all;
-}
-.b-tree {
-  position: relative;
-  height: 100%;
-  overflow-x: scroll;
-  overflow-y: scroll;
-  .b-tree__list-view {
-    &.select {
-      background-color: #fef0e9;
-    }
-    &:hover {
-      background-color: #fef0e9;
-    }
-  }
-}
-.b-tree__phantom {
-  position: absolute;
-  z-index: -1;
-  top: 0;
-  right: 0;
-  left: 0;
-}
-.b-tree__content {
-  position: absolute;
-  top: 0;
-  right: 0;
-  left: 0;
-  min-height: 100px;
-}
-.b-tree__list-view {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-.b-tree__content__item {
-  position: relative;
-  display: flex;
-  box-sizing: border-box;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px;
-  cursor: pointer;
-}
-.b-tree__content__item:hover,
-.b-tree__content__item__selected {
-  background-color: #d7d7d7;
-}
-.b-tree__content__item__icon {
-  position: absolute;
-  z-index: 10;
-  left: 0;
-  color: #c0c4cc;
-}
-</style>
