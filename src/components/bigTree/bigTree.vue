@@ -1,0 +1,295 @@
+<template>
+  <div class="b-tree" ref="scroller" @scroll="handleScroll">
+    <div class="b-tree__phantom" :style="{ height: contentHeight }"></div>
+    <div
+      class="b-tree__content"
+      :style="{ transform: `translateY(${offset}px)` }"
+    >
+      <div
+        v-for="(item, index) in visibleData"
+        :key="item.id + item.cname + ''"
+        :draggable="Boolean(item.isTag)"
+        @dragstart="dragstart(item)"
+        class="b-tree__list-view"
+        @click="clickItem(item, index, $event)"
+        :class="{ select: item.id == currentId }"
+        :style="{
+          paddingLeft: 18 * (item.level - 1) + 'px',
+          height: option.itemHeight + 'px',
+        }"
+      >
+        <span
+          class="b-tree-icon"
+          :class="item.expand ? 'b-tree__expand' : 'b-tree__close'"
+          v-if="item.children && item.children.length"
+        >
+          <Icon type="md-arrow-dropdown" size="18px" />
+        </span>
+        <span v-else style="margin-right: 5px"></span>
+        <slot :item="item" :index="index"></slot>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { mapMutations } from 'vuex'
+// let lastTime = 0;
+export default {
+  name: 'vueBigTree',
+  props: {
+    tree: {
+      type: Array,
+      required: true,
+      default () {
+        return []
+      }
+    },
+    defaultExpand: {
+      type: Boolean,
+      required: false,
+      default: false
+    },
+    timeout: {
+      // 刷新频率
+      type: Number,
+      default: 17
+    },
+    option: {
+      // 配置对象
+      type: Object,
+      required: true,
+      default () {
+        return {
+          height: 500, // 滚动容器的高度
+          itemHeight: 25 // 单个item的高度
+        }
+      }
+    }
+  },
+  data () {
+    return {
+      offset: 0, // translateY偏移量
+      contentHeight: '0px',
+      visibleData: [],
+      currentId: -1,
+      lastTime: 0
+    }
+  },
+  computed: {
+    flattenTree () {
+      const flatten = function (
+        list,
+        childKey = 'children',
+        level = 1,
+        parent = null,
+        defaultExpand = true
+      ) {
+        const arr = []
+        list.forEach((item) => {
+          item.level = level
+          if (item.expand === undefined) {
+            item.expand = defaultExpand
+          }
+          if (item.visible === undefined) {
+            item.visible = true
+          }
+          if (!parent.visible || !parent.expand) {
+            item.visible = false
+          }
+          item.parent = parent
+          arr.push(item)
+          if (item[childKey]) {
+            arr.push(
+              ...flatten(
+                item[childKey],
+                childKey,
+                level + 1,
+                item,
+                defaultExpand
+              )
+            )
+          }
+        })
+        return arr
+      }
+      return flatten(this.tree, 'children', 1, {
+        level: 0,
+        visible: true,
+        expand: true,
+        children: this.tree
+      })
+    },
+    visibleCount () {
+      return Math.floor(this.option.height / this.option.itemHeight)
+    }
+  },
+  watch: {
+    tree () {
+      this.updateView()
+    }
+  },
+  mounted () {
+    this.updateView()
+  },
+  methods: {
+    ...mapMutations({
+      setCurrentDragTag: 'setCurrentDragTag'
+    }),
+    initCurrentId () {
+      this.currentId = -1
+    },
+    dragstart (item) {
+      if (!item.isTag) return
+      this.setCurrentDragTag(item)
+    },
+    clickItem (item, index, $event) {
+      if (item.isTag) {
+        this.currentId = item.id
+        this.$emit('select', item, $event)
+        return
+      }
+      console.log(this.currentIndex)
+      this.toggleExpand(item)
+    },
+    updateView () {
+      this.getContentHeight()
+      this.$emit('update', this.tree)
+      this.handleScroll()
+    },
+    handleScroll () {
+      this.$emit('handleScroll')
+      const currentTime = +new Date()
+      if (currentTime - this.lastTime > this.timeout) {
+        this.updateVisibleData(this.$refs.scroller.scrollTop)
+        this.lastTime = currentTime
+      }
+    },
+    updateVisibleData (scrollTop = 0) {
+      let start =
+        Math.floor(scrollTop / this.option.itemHeight) -
+        Math.floor(this.visibleCount / 2)
+      start = start < 0 ? 0 : start
+      const end = start + this.visibleCount * 2
+      const allVisibleData = (this.flattenTree || []).filter(
+        (item) => item.visible
+      )
+      this.visibleData = allVisibleData.slice(start, end)
+      this.offset = start * this.option.itemHeight
+    },
+    getContentHeight () {
+      this.contentHeight =
+        (this.flattenTree || []).filter((item) => item.visible).length *
+          this.option.itemHeight +
+        'px'
+    },
+    toggleExpand (item) {
+      console.log(item)
+      const isExpand = item.expand
+      if (isExpand) {
+        this.collapse(item, true) // 折叠
+      } else {
+        this.expand(item, true) // 展开
+      }
+      this.updateView()
+    },
+    // 展开节点
+    expand (item) {
+      item.expand = true
+      this.recursionVisible(item.children, true)
+    },
+    // 折叠节点
+    collapse (item) {
+      item.expand = false
+      this.recursionVisible(item.children, false)
+    },
+    // 折叠所有
+    collapseAll (level = 1) {
+      this.flattenTree.forEach((item) => {
+        item.expand = false
+        if (item.level != level) {
+          item.visible = false
+        }
+      })
+      this.updateView()
+    },
+    // 展开所有
+    expandAll () {
+      this.flattenTree.forEach((item) => {
+        item.expand = true
+        item.visible = true
+      })
+      this.updateView()
+    },
+    // 递归节点
+    recursionVisible (children, status) {
+      children &&
+        children.forEach((node) => {
+          node.visible = status
+          if (node.children) {
+            this.recursionVisible(node.children, status)
+          }
+        })
+    }
+  }
+}
+</script>
+
+<style scoped lang=less>
+.b-tree-icon {
+  font-size: 18px !important;
+  transition: 0.3s all;
+}
+.b-tree {
+  position: relative;
+  height: 100%;
+  overflow-x: scroll;
+  overflow-y: scroll;
+  .b-tree__list-view {
+    &.select {
+      background-color: #fef0e9;
+    }
+    &:hover {
+      background-color: #fef0e9;
+    }
+  }
+}
+.b-tree__phantom {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  left: 0;
+}
+.b-tree__content {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  min-height: 100px;
+}
+.b-tree__list-view {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.b-tree__content__item {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px;
+  cursor: pointer;
+}
+.b-tree__content__item:hover,
+.b-tree__content__item__selected {
+  background-color: #d7d7d7;
+}
+.b-tree__content__item__icon {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  color: #c0c4cc;
+}
+</style>
