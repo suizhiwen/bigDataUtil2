@@ -9,7 +9,7 @@ Vue.use(iView)
 export default {
     install (Vue, config) {
         methods(Vue, config)
-        Vue.directive(track.name, track)
+        // Vue.directive(track.name, track)
 
         Vue.component('bigTree', bigTree)
         Vue.component('lay', lay)

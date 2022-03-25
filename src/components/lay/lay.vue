@@ -63,6 +63,7 @@ export default {
   justify-content: center;
 }
 .--column {
+  height: 100%;
   flex-direction: column;
 }
 .--scroll {
