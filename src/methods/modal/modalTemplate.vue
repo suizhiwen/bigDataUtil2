@@ -11,7 +11,9 @@
       <Button type="default" @click="cancel">{{
         lan ? "cancel" : "取消"
       }}</Button>
-      <Button v-if="fn" type="primary" @click="confirm">{{ lan ? "ok" : "确定" }}</Button>
+      <Button v-if="fn" type="primary" @click="confirm">{{
+        lan ? "ok" : "确定"
+      }}</Button>
     </div>
     <div id="modal-content" ref="content" class="content"></div>
   </Modal>
@@ -42,19 +44,21 @@ export default {
   mounted() {
     let option = this.option;
     this.$nextTick(() => {
-      this.tpl = new Vue(option.tpl);
-      this.tpl.$mount("#modal-content");
-      //  let Ctor = Vue.extend(this.option.tpl)
-      //  let obj = new Ctor
-      //   this.el = obj.$mount().$el
-      //   this.$refs.content.appendChild(this.el)
+      // 第一种
+      // this.tpl = new Vue(option.tpl);
+      // this.tpl.$mount("#modal-content");
+      // 第二种
+      let Ctor = Vue.extend(option.tpl);
+      this.tpl = new Ctor();
+      this.el = this.tpl.$mount().$el;
+      this.$refs.content.appendChild(this.el);
     });
   },
   methods: {
     resetFields() {},
     cancel() {
       this.isShow = false;
-      this.$destroy(true)
+      this.$destroy(true);
       this.$el.parentNode.removeChild(this.$el);
     },
     confirm() {
